@@ -3,25 +3,37 @@ const router = express.Router();
 const Attendance = require('../models/Attendance');
 const User = require('../models/User');
 
+// IST time helper
+const getISTDateTime = () => {
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000; // IST = UTC + 5:30
+  const istTime = new Date(now.getTime() + istOffset);
+
+  const date = istTime.toISOString().split('T')[0]; // "2026-05-17"
+
+  const hours = istTime.getUTCHours();
+  const minutes = istTime.getUTCMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'pm' : 'am';
+  const hrs12 = hours % 12 || 12;
+  const time = `${hrs12}:${minutes} ${ampm}`; // "11:23 am"
+
+  return { date, time };
+};
+
 // ── MARK ATTENDANCE
 router.post('/mark', async (req, res) => {
   try {
     const { studentId, subject, confidence } = req.body;
 
-    const now = new Date();
-    const date = now.toISOString().split('T')[0]; // "2026-05-14"
-    const time = now.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const { date, time } = getISTDateTime();
 
     // Duplicate check (same student, subject, date)
-    const existing = await Attendance.findOne({ 
-      student: studentId, subject, date 
+    const existing = await Attendance.findOne({
+      student: studentId, subject, date
     });
     if (existing) {
-      return res.status(400).json({ 
-        message: 'Attendance already marked for today' 
+      return res.status(400).json({
+        message: 'Attendance already marked for today'
       });
     }
 
@@ -36,9 +48,9 @@ router.post('/mark', async (req, res) => {
 
     await attendance.save();
 
-    res.status(201).json({ 
-      message: '✅ Attendance marked!', 
-      attendance 
+    res.status(201).json({
+      message: '✅ Attendance marked!',
+      attendance
     });
 
   } catch (err) {
@@ -49,8 +61,8 @@ router.post('/mark', async (req, res) => {
 // ── GET STUDENT ATTENDANCE
 router.get('/student/:studentId', async (req, res) => {
   try {
-    const records = await Attendance.find({ 
-      student: req.params.studentId 
+    const records = await Attendance.find({
+      student: req.params.studentId
     }).sort({ createdAt: -1 });
 
     res.json(records);
@@ -75,8 +87,8 @@ router.get('/all', async (req, res) => {
 // ── GET ATTENDANCE % PER SUBJECT
 router.get('/stats/:studentId', async (req, res) => {
   try {
-    const records = await Attendance.find({ 
-      student: req.params.studentId 
+    const records = await Attendance.find({
+      student: req.params.studentId
     });
 
     // Group by subject
