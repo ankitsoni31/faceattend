@@ -23,10 +23,10 @@ const Dashboard = () => {
     try {
       setLoading(true)
       const [recRes, statRes] = await Promise.all([
-        axios.get(`https://faceattend-backend.onrender.com/api/attendance/student/${user.id}`, {
+        axios.get(`https://faceattend-backend-kbrz.onrender.com/api/attendance/student/${user.id}`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get(`https://faceattend-backend.onrender.com/api/attendance/stats/${user.id}`, {
+        axios.get(`https://faceattend-backend-kbrz.onrender.com/api/attendance/stats/${user.id}`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
       ])

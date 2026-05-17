@@ -74,7 +74,7 @@ const FaceRegister = () => {
       const descriptor = Array.from(detection.descriptor)
 
       await axios.post(
-        'https://faceattend-backend.onrender.com/api/auth/save-face',
+        'https://faceattend-backend-kbrz.onrender.com/api/auth/save-face',
         { rollNumber: user.rollNumber, faceDescriptor: descriptor },
         { headers: { Authorization: `Bearer ${token}` } }
       )

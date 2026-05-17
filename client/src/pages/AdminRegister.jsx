@@ -39,7 +39,7 @@ const AdminRegister = () => {
 
     setLoading(true)
     try {
-      await axios.post('https://faceattend-backend.onrender.com/api/auth/register-admin', {
+      await axios.post('https://faceattend-backend-kbrz.onrender.com/api/auth/register-admin', {
         name: formData.name,
         rollNumber: formData.rollNumber,
         email: formData.email,
