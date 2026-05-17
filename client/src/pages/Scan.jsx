@@ -19,6 +19,7 @@ const Scan = () => {
   const [selectedSubject, setSelectedSubject] = useState('')
   const [confidence, setConfidence] = useState(0)
   const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState('') // 'success' | 'error' | 'warning' | 'info'
   const [registeredUsers, setRegisteredUsers] = useState([])
   const [alreadyMarked, setAlreadyMarked] = useState(false)
   const [subjectsLoading, setSubjectsLoading] = useState(true)
@@ -32,6 +33,7 @@ const Scan = () => {
     const loadModels = async () => {
       try {
         setMessage('Loading AI models...')
+        setMessageType('info')
         await Promise.all([
           faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
           faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
@@ -39,8 +41,10 @@ const Scan = () => {
         ])
         setModelsLoaded(true)
         setMessage('')
+        setMessageType('')
       } catch {
         setMessage('❌ Failed to load models.')
+        setMessageType('error')
       }
     }
     loadModels()
@@ -58,6 +62,7 @@ const Scan = () => {
         }
       } catch {
         setMessage('❌ Failed to load subjects.')
+        setMessageType('error')
       } finally {
         setSubjectsLoading(false)
       }
@@ -85,8 +90,10 @@ const Scan = () => {
       videoRef.current.srcObject = stream
       setCameraOn(true)
       setMessage('Camera started — click Scan Face')
+      setMessageType('info')
     } catch {
       setMessage('❌ Camera access denied.')
+      setMessageType('error')
     }
   }
 
@@ -97,17 +104,22 @@ const Scan = () => {
     setCameraOn(false)
     setStatus('idle')
     setMatchedUser(null)
+    setAlreadyMarked(false)
+    setMessage('')
+    setMessageType('')
   }
 
   const scanFace = async () => {
     if (!modelsLoaded || !cameraOn) return
     if (!selectedSubject) {
       setMessage('❌ Please select a subject first.')
+      setMessageType('error')
       return
     }
     setScanning(true)
     setStatus('scanning')
     setMessage('Scanning face...')
+    setMessageType('info')
 
     try {
       const detection = await faceapi
@@ -118,6 +130,7 @@ const Scan = () => {
       if (!detection) {
         setStatus('notfound')
         setMessage('❌ No face detected. Look at the camera.')
+        setMessageType('error')
         setScanning(false)
         return
       }
@@ -125,6 +138,7 @@ const Scan = () => {
       if (registeredUsers.length === 0) {
         setStatus('notfound')
         setMessage('❌ No registered faces found.')
+        setMessageType('error')
         setScanning(false)
         return
       }
@@ -140,6 +154,7 @@ const Scan = () => {
       if (bestMatch.label === 'unknown') {
         setStatus('notfound')
         setMessage('❌ Face not recognized. Register your face first.')
+        setMessageType('error')
         setScanning(false)
         return
       }
@@ -151,11 +166,13 @@ const Scan = () => {
       setConfidence(conf)
       setStatus('matched')
       setMessage(`✅ Face matched: ${matchedPerson.name} (${conf}%)`)
+      setMessageType('success')
 
       await markAttendance(matchedPerson._id, conf)
 
     } catch {
       setMessage('❌ Scan failed. Try again.')
+      setMessageType('error')
       setStatus('idle')
     } finally {
       setScanning(false)
@@ -170,14 +187,17 @@ const Scan = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       )
       setStatus('marked')
-      setMessage(`🎉 Attendance marked for ${selectedSubject}!`)
+      setMessage(`🎉 Attendance marked successfully for ${selectedSubject}!`)
+      setMessageType('success')
     } catch (err) {
       if (err.response?.data?.message === 'Attendance already marked for today') {
         setAlreadyMarked(true)
         setStatus('marked')
-        setMessage(`ℹ️ Already marked for ${selectedSubject} today.`)
+        setMessage(`⚠️ Attendance already marked for ${selectedSubject} today! You cannot mark it again.`)
+        setMessageType('warning')
       } else {
         setMessage('❌ Failed to mark attendance.')
+        setMessageType('error')
       }
     }
   }
@@ -195,6 +215,15 @@ const Scan = () => {
     if (status === 'marked') return alreadyMarked ? 'Already Marked' : 'Attendance Marked!'
     if (status === 'notfound') return 'Not Found'
     return 'Ready'
+  }
+
+  const getMessageStyle = () => {
+    switch (messageType) {
+      case 'success': return 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+      case 'error':   return 'bg-red-500/10 border-red-500/30 text-red-400'
+      case 'warning': return 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+      default:        return 'bg-white/5 border-white/10 text-slate-300'
+    }
   }
 
   return (
@@ -226,7 +255,6 @@ const Scan = () => {
               <label className="block text-sm text-slate-400 mb-3 font-medium">
                 Select Subject
               </label>
-
               {subjectsLoading ? (
                 <p className="text-slate-500 text-sm animate-pulse">Loading subjects...</p>
               ) : subjects.length === 0 ? (
@@ -337,8 +365,9 @@ const Scan = () => {
                 )}
               </div>
 
+              {/* Message Box */}
               {message && (
-                <div className="mt-4 p-3 rounded-lg text-sm text-slate-300 bg-white/5 border border-white/10">
+                <div className={`mt-4 p-3 rounded-lg text-sm border font-medium ${getMessageStyle()}`}>
                   {message}
                 </div>
               )}
@@ -385,7 +414,9 @@ const Scan = () => {
                     </div>
                     <div className="flex justify-between">
                       <span>Status</span>
-                      <span className="text-emerald-400">{alreadyMarked ? 'Already marked' : '✅ Present'}</span>
+                      <span className={alreadyMarked ? 'text-amber-400' : 'text-emerald-400'}>
+                        {alreadyMarked ? '⚠️ Already marked' : '✅ Present'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Time</span>
