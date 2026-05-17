@@ -31,7 +31,7 @@ const Login = () => {
 
     try {
       const res = await axios.post(
-        'https://faceattend-backend.onrender.com/api/auth/login',
+        'https://faceattend-backend-kbrz.onrender.com/api/auth/login',
         formData
       )
 
