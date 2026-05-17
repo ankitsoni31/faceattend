@@ -51,7 +51,7 @@ const Scan = () => {
     const fetchSubjects = async () => {
       try {
         setSubjectsLoading(true)
-        const res = await axios.get('http://localhost:5000/api/subjects')
+        const res = await axios.get('https://faceattend-backend.onrender.com/api/subjects')
         setSubjects(res.data)
         if (res.data.length > 0) {
           setSelectedSubject(res.data[0].name)
@@ -69,7 +69,7 @@ const Scan = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/auth/users')
+        const res = await axios.get('https://faceattend-backend.onrender.com/api/auth/users')
         const usersWithFace = res.data.filter(u => u.faceDescriptor && u.faceDescriptor.length > 0)
         setRegisteredUsers(usersWithFace)
       } catch {
@@ -165,7 +165,7 @@ const Scan = () => {
   const markAttendance = async (studentId, conf) => {
     try {
       await axios.post(
-        'http://localhost:5000/api/attendance/mark',
+        'https://faceattend-backend.onrender.com/api/attendance/mark',
         { studentId, subject: selectedSubject, confidence: conf },
         { headers: { Authorization: `Bearer ${token}` } }
       )

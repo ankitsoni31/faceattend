@@ -43,7 +43,7 @@ const Register = () => {
     setLoading(true)
 
     try {
-      await axios.post('http://localhost:5000/api/auth/register', {
+      await axios.post('https://faceattend-backend.onrender.com/api/auth/register', {
         name: formData.name,
         rollNumber: formData.rollNumber,
         email: formData.email,

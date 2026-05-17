@@ -32,9 +32,9 @@ const AdminPanel = () => {
     try {
       setLoading(true)
       const [recRes, stuRes, subRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/attendance/all', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('http://localhost:5000/api/auth/users', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('http://localhost:5000/api/subjects'),
+        axios.get('https://faceattend-backend.onrender.com/api/attendance/all', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('https://faceattend-backend.onrender.com/api/auth/users', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('https://faceattend-backend.onrender.com/api/subjects'),
       ])
       setRecords(recRes.data)
       setStudents(stuRes.data)
@@ -51,7 +51,7 @@ const AdminPanel = () => {
     setSubjectError('')
     setSubjectLoading(true)
     try {
-      await axios.post('http://localhost:5000/api/subjects/add', subjectForm, {
+      await axios.post('https://faceattend-backend.onrender.com/api/subjects/add', subjectForm, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setSubjectForm({ name: '', code: '', time: '' })
@@ -66,7 +66,7 @@ const AdminPanel = () => {
   const handleDeleteSubject = async (id) => {
     if (!confirm('Delete this subject?')) return
     try {
-      await axios.delete(`http://localhost:5000/api/subjects/${id}`, {
+      await axios.delete(`https://faceattend-backend.onrender.com/api/subjects/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       fetchData()
@@ -83,7 +83,7 @@ const AdminPanel = () => {
     setDeleteLoading(true)
     try {
       await axios.delete(
-        `http://localhost:5000/api/auth/delete-student/${deleteModal.student._id}`,
+        `https://faceattend-backend.onrender.com/api/auth/delete-student/${deleteModal.student._id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
       closeDeleteModal()
