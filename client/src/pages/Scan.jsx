@@ -19,10 +19,11 @@ const Scan = () => {
   const [selectedSubject, setSelectedSubject] = useState('')
   const [confidence, setConfidence] = useState(0)
   const [message, setMessage] = useState('')
-  const [messageType, setMessageType] = useState('') // 'success' | 'error' | 'warning' | 'info'
+  const [messageType, setMessageType] = useState('')
   const [registeredUsers, setRegisteredUsers] = useState([])
   const [alreadyMarked, setAlreadyMarked] = useState(false)
   const [subjectsLoading, setSubjectsLoading] = useState(true)
+  const [facingMode, setFacingMode] = useState('user') // front camera default
 
   useEffect(() => {
     if (!user) navigate('/login')
@@ -50,16 +51,14 @@ const Scan = () => {
     loadModels()
   }, [])
 
-  // Fetch subjects from database
+  // Fetch subjects
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
         setSubjectsLoading(true)
         const res = await axios.get('https://faceattend-backend-kbrz.onrender.com/api/subjects')
         setSubjects(res.data)
-        if (res.data.length > 0) {
-          setSelectedSubject(res.data[0].name)
-        }
+        if (res.data.length > 0) setSelectedSubject(res.data[0].name)
       } catch {
         setMessage('❌ Failed to load subjects.')
         setMessageType('error')
@@ -84,9 +83,15 @@ const Scan = () => {
     fetchUsers()
   }, [])
 
-  const startCamera = async () => {
+  const startCamera = async (mode = facingMode) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: mode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        }
+      })
       videoRef.current.srcObject = stream
       setCameraOn(true)
       setMessage('Camera started — click Scan Face')
@@ -109,6 +114,18 @@ const Scan = () => {
     setMessageType('')
   }
 
+  // Switch between front and back camera
+  const switchCamera = async () => {
+    const newMode = facingMode === 'user' ? 'environment' : 'user'
+    setFacingMode(newMode)
+    // Stop current stream
+    const stream = videoRef.current?.srcObject
+    if (stream) stream.getTracks().forEach(t => t.stop())
+    videoRef.current.srcObject = null
+    // Start with new mode
+    setTimeout(() => startCamera(newMode), 300)
+  }
+
   const scanFace = async () => {
     if (!modelsLoaded || !cameraOn) return
     if (!selectedSubject) {
@@ -123,13 +140,16 @@ const Scan = () => {
 
     try {
       const detection = await faceapi
-        .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+        .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({
+          inputSize: 320,
+          scoreThreshold: 0.5
+        }))
         .withFaceLandmarks()
         .withFaceDescriptor()
 
       if (!detection) {
         setStatus('notfound')
-        setMessage('❌ No face detected. Look at the camera.')
+        setMessage('❌ No face detected. Look directly at the camera.')
         setMessageType('error')
         setScanning(false)
         return
@@ -233,14 +253,14 @@ const Scan = () => {
       <div className="fixed inset-0 pointer-events-none z-0 bg-[linear-gradient(rgba(0,200,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(0,200,255,0.025)_1px,transparent_1px)] bg-[size:64px_64px]" />
       <div className="fixed top-[-200px] left-[-100px] w-[600px] h-[600px] rounded-full bg-cyan-500/5 blur-[140px] pointer-events-none z-0" />
 
-      <div className="relative z-10 max-w-6xl mx-auto px-8 pt-28 pb-16">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 md:px-8 pt-24 pb-16">
 
-        <div className="mb-10">
+        <div className="mb-8">
           <div className="flex items-center gap-3 text-xs uppercase tracking-widest text-cyan-400 mb-3">
             <span className="w-5 h-px bg-cyan-400" />
             Face Scan
           </div>
-          <h1 className="text-4xl font-black tracking-tight mb-2">
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2">
             Mark Your <span className="text-cyan-400">Attendance</span>
           </h1>
           <p className="text-slate-400 text-sm">Select subject, start camera, and scan your face</p>
@@ -251,16 +271,14 @@ const Scan = () => {
           <div className="lg:col-span-2">
 
             {/* Subject Selector */}
-            <div className="bg-[#0A1221] border border-cyan-500/10 rounded-2xl p-6 mb-5">
-              <label className="block text-sm text-slate-400 mb-3 font-medium">
-                Select Subject
-              </label>
+            <div className="bg-[#0A1221] border border-cyan-500/10 rounded-2xl p-5 mb-5">
+              <label className="block text-sm text-slate-400 mb-3 font-medium">Select Subject</label>
               {subjectsLoading ? (
                 <p className="text-slate-500 text-sm animate-pulse">Loading subjects...</p>
               ) : subjects.length === 0 ? (
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 text-sm">
                   <p className="text-amber-400 font-medium">No subjects found!</p>
-                  <p className="text-slate-400 text-xs mt-1">Ask admin to add subjects from Admin Panel → Subjects tab.</p>
+                  <p className="text-slate-400 text-xs mt-1">Ask admin to add subjects.</p>
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-2">
@@ -275,9 +293,7 @@ const Scan = () => {
                       }`}
                     >
                       {sub.name}
-                      {sub.time && (
-                        <span className="ml-2 text-xs opacity-60">{sub.time}</span>
-                      )}
+                      {sub.time && <span className="ml-2 text-xs opacity-60">{sub.time}</span>}
                     </button>
                   ))}
                 </div>
@@ -285,8 +301,11 @@ const Scan = () => {
             </div>
 
             {/* Camera Box */}
-            <div className="bg-[#0A1221] border border-cyan-500/10 rounded-2xl p-6">
-              <div className="relative bg-black rounded-xl overflow-hidden mb-5" style={{ aspectRatio: '16/9' }}>
+            <div className="bg-[#0A1221] border border-cyan-500/10 rounded-2xl p-5">
+
+              {/* Camera Feed */}
+              <div className="relative bg-black rounded-xl overflow-hidden mb-4"
+                style={{ aspectRatio: window.innerWidth < 768 ? '4/3' : '16/9' }}>
 
                 <div className="absolute inset-0 z-10 pointer-events-none"
                   style={{ backgroundImage:'linear-gradient(rgba(0,200,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,255,0.04) 1px,transparent 1px)', backgroundSize:'20px 20px' }}/>
@@ -300,8 +319,12 @@ const Scan = () => {
                   ref={videoRef}
                   autoPlay
                   muted
+                  playsInline
                   className="w-full h-full object-cover"
-                  style={{ display: cameraOn ? 'block' : 'none' }}
+                  style={{
+                    display: cameraOn ? 'block' : 'none',
+                    transform: facingMode === 'user' ? 'scaleX(-1)' : 'none', // mirror front camera
+                  }}
                 />
 
                 {!cameraOn && (
@@ -317,22 +340,36 @@ const Scan = () => {
                   </div>
                 )}
 
+                {/* Corner brackets */}
                 <div className="absolute top-3 left-3 w-4 h-4 z-20" style={{ borderTop:'2px solid #00C8FF', borderLeft:'2px solid #00C8FF' }}/>
                 <div className="absolute top-3 right-3 w-4 h-4 z-20" style={{ borderTop:'2px solid #00C8FF', borderRight:'2px solid #00C8FF' }}/>
                 <div className="absolute bottom-3 left-3 w-4 h-4 z-20" style={{ borderBottom:'2px solid #00C8FF', borderLeft:'2px solid #00C8FF' }}/>
                 <div className="absolute bottom-3 right-3 w-4 h-4 z-20" style={{ borderBottom:'2px solid #00C8FF', borderRight:'2px solid #00C8FF' }}/>
 
+                {/* Status badge */}
                 <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-full text-xs font-medium"
                   style={{ background:'rgba(0,0,0,0.7)', border:`1px solid ${getStatusColor()}`, color: getStatusColor() }}>
                   ● {getStatusText()}
                 </div>
+
+                {/* Camera switch button — top right when camera on */}
+                {cameraOn && (
+                  <button
+                    onClick={switchCamera}
+                    className="absolute bottom-3 right-3 z-20 w-9 h-9 rounded-full flex items-center justify-center text-white cursor-pointer"
+                    style={{ background:'rgba(0,0,0,0.6)', border:'1px solid rgba(255,255,255,0.2)' }}
+                    title="Switch camera"
+                  >
+                    🔄
+                  </button>
+                )}
               </div>
 
               {/* Buttons */}
               <div className="flex gap-3">
                 {!cameraOn ? (
                   <button
-                    onClick={startCamera}
+                    onClick={() => startCamera()}
                     disabled={!modelsLoaded}
                     className={`flex-1 py-3 rounded-lg text-sm font-semibold transition-all ${
                       modelsLoaded
@@ -380,7 +417,6 @@ const Scan = () => {
             {/* Match Result */}
             <div className="bg-[#0A1221] border border-cyan-500/10 rounded-2xl p-6">
               <h3 className="text-sm font-semibold text-slate-400 mb-4 uppercase tracking-widest">Match Result</h3>
-
               {matchedUser ? (
                 <div>
                   <div className="w-16 h-16 bg-cyan-500/10 border border-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -451,8 +487,8 @@ const Scan = () => {
                   <span className="text-cyan-400 text-xs text-right max-w-[120px]">{selectedSubject || 'None selected'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Total Subjects</span>
-                  <span className="text-white">{subjects.length}</span>
+                  <span className="text-slate-400">Camera</span>
+                  <span className="text-white text-xs">{facingMode === 'user' ? '🤳 Front' : '📷 Back'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">AI Models</span>
